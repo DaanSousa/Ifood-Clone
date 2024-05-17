@@ -50,6 +50,8 @@ public class LoginActivity extends AppCompatActivity {
         findViewById(R.id.text_criar_conta).setOnClickListener(view ->
                 startActivity(new Intent(this, CriarContaActivity.class)));
         findViewById(R.id.ib_voltar).setOnClickListener(view -> finish());
+        findViewById(R.id.recuperar_conta).setOnClickListener(view ->
+                startActivity(new Intent(this, RecuperarContaActivity.class)));
     }
 
     public void validaDados(View view){
