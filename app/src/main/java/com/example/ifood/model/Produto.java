@@ -13,7 +13,7 @@ public class Produto {
     private Double valor;
     private Double valorAntigo;
     private String descricao;
-    private String irlImagem;
+    private String urlImagem;
 
     public Produto() {
         DatabaseReference produtoRef = FirebaseHelper.getDatabaseReference();
@@ -24,7 +24,7 @@ public class Produto {
     public void salvar(){
         DatabaseReference produtoRef = FirebaseHelper.getDatabaseReference()
                 .child("produtos")
-                .child(getIdEmpresa())
+                .child(FirebaseHelper.getIdFirebase())
                 .child(getId());
         produtoRef.setValue(this);
 
@@ -97,11 +97,11 @@ public class Produto {
         this.descricao = descricao;
     }
 
-    public String getIrlImagem() {
-        return irlImagem;
+    public String getUrlImagem() {
+        return urlImagem;
     }
 
-    public void setIrlImagem(String irlImagem) {
-        this.irlImagem = irlImagem;
+    public void setUrlImagem(String urlImagem) {
+        this.urlImagem = urlImagem;
     }
 }

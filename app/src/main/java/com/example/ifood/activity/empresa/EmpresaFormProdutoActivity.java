@@ -1,34 +1,57 @@
 package com.example.ifood.activity.empresa;
 
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.Manifest;
 import android.content.Context;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.ImageDecoder;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.blackcat.currencyedittext.CurrencyEditText;
 import com.example.ifood.R;
+import com.example.ifood.helper.FirebaseHelper;
 import com.example.ifood.model.Categoria;
 import com.example.ifood.model.Produto;
+import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.UploadTask;
+import com.gun0912.tedpermission.PermissionListener;
+import com.gun0912.tedpermission.normal.TedPermission;
 
+import java.io.IOException;
+import java.util.List;
 import java.util.Locale;
 
 public class EmpresaFormProdutoActivity extends AppCompatActivity {
 
+    private final int REQUEST_CATEGORIA = 100;
+    private final int REQUEST_GALERIA = 200;
     private ImageView img_produto;
     private EditText edt_nome;
     private CurrencyEditText edt_valor;
     private CurrencyEditText edt_valor_antigo;
     private Button btn_categoria;
     private EditText edt_descricao;
+    private LinearLayout l_edt_descricao;
 
     private Categoria categoriaSelecionada = null;
+
+    private Produto produto;
+    private String caminhoImagem;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,6 +66,18 @@ public class EmpresaFormProdutoActivity extends AppCompatActivity {
 
     private void configCliques(){
         findViewById(R.id.ib_voltar).setOnClickListener(view -> finish());
+        btn_categoria.setOnClickListener(view -> {
+            Intent intent = new Intent(this, EmpresaCategoriasActivity.class);
+            intent.putExtra("acesso", 1);
+            startActivityForResult(intent,REQUEST_CATEGORIA);
+        });
+
+        l_edt_descricao.setOnClickListener(view -> {
+            mostrarTeclado();
+            edt_descricao.requestFocus();
+        });
+
+        img_produto.setOnClickListener(view -> verificaPermissaoGaleria());
     }
 
     public void validaDados(View view){
@@ -58,15 +93,14 @@ public class EmpresaFormProdutoActivity extends AppCompatActivity {
 
                         ocultarTeclado();
 
-                        Produto produto = new Produto();
+                        if (produto == null) produto = new Produto();
                         produto.setNome(nome);
                         produto.setValor(valor);
                         produto.setValorAntigo(valorAntigo);
                         produto.setIdCategoria(categoriaSelecionada.getId());
                         produto.setDescricao(descricao);
 
-                        produto.salvar();
-
+                        salvarImagemFirebase();
 
                     }else{
                         edt_descricao.requestFocus();
@@ -75,7 +109,7 @@ public class EmpresaFormProdutoActivity extends AppCompatActivity {
 
                 }else{
                     ocultarTeclado();
-                    erroSalvarProduto();
+                    erroSalvarProduto("Selecione uma categoria para o produto.");
                 }
 
             }else{
@@ -87,18 +121,6 @@ public class EmpresaFormProdutoActivity extends AppCompatActivity {
             edt_nome.requestFocus();
             edt_nome.setError("Informe um nome.");
         }
-    }
-
-    private void erroSalvarProduto(){
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Atenção");
-        builder.setMessage("Selecione uma categoria para o produto.");
-        builder.setPositiveButton("OK", ((dialogInterface, i) -> {
-            dialogInterface.dismiss();
-        }));
-
-        AlertDialog dialog = builder.create();
-        dialog.show();
     }
 
     private void iniciaComponentes(){
@@ -116,7 +138,71 @@ public class EmpresaFormProdutoActivity extends AppCompatActivity {
 
         btn_categoria = findViewById(R.id.btn_categoria);
         edt_descricao = findViewById(R.id.edt_descricao);
+        l_edt_descricao = findViewById(R.id.l_edt_descricao);
 
+    }
+
+    private void verificaPermissaoGaleria(){
+        PermissionListener permissionlistener = new PermissionListener() {
+            @Override
+            public void onPermissionGranted() {
+                abrirGaleria();
+            }
+            @Override
+            public void onPermissionDenied(List<String> deniedPermissions) {
+                Toast.makeText(getBaseContext(), "Permissão negada. ", Toast.LENGTH_SHORT).show();
+            }
+        };
+
+        TedPermission.create()
+                .setPermissionListener(permissionlistener)
+                .setDeniedTitle("Permissão negada. ")
+                .setDeniedMessage("Se você não aceitar a permissão não poderá acessar a Galeria do dispositivo, deseja ativar a permissão agora ?")
+                .setDeniedCloseButtonText("Não")
+                .setGotoSettingButtonText("Sim")
+                .setPermissions(Manifest.permission.READ_MEDIA_IMAGES)
+                .check();
+
+    }
+
+    private void abrirGaleria(){
+        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+        startActivityForResult(intent, REQUEST_GALERIA);
+    }
+
+    private void salvarImagemFirebase(){
+        StorageReference storageReference = FirebaseHelper.getStorageReference()
+                .child("imagens")
+                .child("produtos")
+                .child(FirebaseHelper.getIdFirebase())
+                .child(produto.getId() + ".JPEG");
+
+        UploadTask uploadTask = storageReference.putFile(Uri.parse(caminhoImagem));
+        uploadTask.addOnSuccessListener(taskSnapshot -> storageReference.getDownloadUrl().addOnCompleteListener(task -> {
+
+            produto.setUrlImagem(task.getResult().toString());
+            produto.salvar();
+
+            finish();
+
+        })).addOnFailureListener(e -> erroSalvarProduto(e.getMessage()));
+    }
+
+    private void erroSalvarProduto(String msg){
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Atenção");
+        builder.setMessage(msg);
+        builder.setPositiveButton("OK", ((dialogInterface, i) -> {
+            dialogInterface.dismiss();
+        }));
+
+        AlertDialog dialog = builder.create();
+        dialog.show();
+    }
+
+    private void mostrarTeclado(){
+        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.toggleSoftInput(InputMethodManager.SHOW_FORCED, InputMethodManager.HIDE_IMPLICIT_ONLY);
     }
 
     private void ocultarTeclado(){
@@ -125,4 +211,36 @@ public class EmpresaFormProdutoActivity extends AppCompatActivity {
         );
     }
 
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (resultCode == RESULT_OK ){
+            if (requestCode == REQUEST_CATEGORIA){
+                categoriaSelecionada = (Categoria) data.getSerializableExtra("categoriaSelecionada");
+                btn_categoria.setText(categoriaSelecionada.getNome());
+            }else if(requestCode == REQUEST_GALERIA){
+                Bitmap bitmap;
+
+                Uri imagemSelecionada = data.getData();
+                caminhoImagem = data.getData().toString();
+
+                if (Build.VERSION.SDK_INT < 28){
+                    try {
+                        bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), imagemSelecionada);
+                        img_produto.setImageBitmap(bitmap);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }else{
+                    ImageDecoder.Source source = ImageDecoder.createSource(getContentResolver(), imagemSelecionada);
+                    try {
+                        bitmap = ImageDecoder.decodeBitmap(source);
+                        img_produto.setImageBitmap(bitmap);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+        }
+    }
 }

@@ -5,6 +5,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -48,6 +49,11 @@ public class EmpresaCategoriasActivity extends AppCompatActivity implements Cate
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_empresa_categorias);
+
+        Bundle bundle = getIntent().getExtras();
+        if (bundle != null){
+            acesso = bundle.getInt("acesso");
+        }
 
         iniciaComponentes();
 
@@ -200,10 +206,18 @@ public class EmpresaCategoriasActivity extends AppCompatActivity implements Cate
 
     @Override
     public void Onclick(Categoria categoria, int position) {
-        categoriaSelecionada = categoria;
-        categoriaIndex = position;
-        novaCategoria = false;
+        if (acesso == 0) {
+            categoriaSelecionada = categoria;
+            categoriaIndex = position;
+            novaCategoria = false;
 
-        showDialog();
+            showDialog();
+        }else if (acesso == 1){
+            Intent intent = new Intent();
+            intent.putExtra("categoriaSelecionada", categoria);
+            setResult(RESULT_OK, intent);
+            finish();
+        }
+
     }
 }
