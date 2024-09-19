@@ -59,7 +59,7 @@
                     android:text="Titulo" />
 
                 <EditText
-                    android:id="@+id/edt_produto"
+                    android:id="@+id/edt_nome"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
@@ -178,6 +178,7 @@
         android:background="@color/cor_principal"
         android:padding="16dp"
         android:text="Salvar"
+        android:onClick="validaDados"
         android:textAllCaps="false"
         android:textColor="@color/white"
         android:textSize="16sp"

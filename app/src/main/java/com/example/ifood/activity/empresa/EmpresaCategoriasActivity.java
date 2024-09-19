@@ -42,6 +42,7 @@ public class EmpresaCategoriasActivity extends AppCompatActivity implements Cate
     private Categoria categoriaSelecionada;
     private int categoriaIndex = 0;
     private Boolean novaCategoria = true;
+    private int acesso = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
