@@ -1,5 +1,6 @@
 package com.example.ifood.activity.empresa;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -27,10 +28,16 @@ import com.example.ifood.R;
 import com.example.ifood.helper.FirebaseHelper;
 import com.example.ifood.model.Categoria;
 import com.example.ifood.model.Produto;
+import com.google.android.material.snackbar.Snackbar;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 import com.gun0912.tedpermission.PermissionListener;
 import com.gun0912.tedpermission.normal.TedPermission;
+import com.squareup.picasso.Picasso;
 
 import java.io.IOException;
 import java.util.List;
@@ -52,6 +59,8 @@ public class EmpresaFormProdutoActivity extends AppCompatActivity {
 
     private Produto produto;
     private String caminhoImagem;
+    private Boolean novoProduto = true;
+    private TextView text_toobar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,8 +69,49 @@ public class EmpresaFormProdutoActivity extends AppCompatActivity {
 
         iniciaComponentes();
 
+        Bundle bundle = getIntent().getExtras();
+        if (bundle != null){
+            produto = (Produto) bundle.getSerializable("produtoSelecionado");
+
+            configDados();
+        }
+
         configCliques();
 
+    }
+
+    private void configDados(){
+        Picasso.get().load(produto.getUrlImagem()).into(img_produto);
+        edt_nome.setText(produto.getNome());
+        edt_valor.setText(String.valueOf(produto.getValor()));
+        edt_valor_antigo.setText(String.valueOf(produto.getValorAntigo()));
+        edt_descricao.setText(produto.getDescricao());
+
+        recuperaCategoria();
+
+        novoProduto = false;
+        text_toobar.setText("Edição");
+    }
+
+    private void recuperaCategoria(){
+        DatabaseReference categoriasRef = FirebaseHelper.getDatabaseReference()
+                .child("categorias")
+                .child(FirebaseHelper.getIdFirebase())
+                .child(produto.getIdCategoria());
+        categoriasRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                Categoria categoria = snapshot.getValue(Categoria.class);
+                if (categoria != null){
+                    btn_categoria.setText(categoria.getNome());
+                    categoriaSelecionada = categoria;
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+            }
+        });
     }
 
     private void configCliques(){
@@ -100,7 +150,26 @@ public class EmpresaFormProdutoActivity extends AppCompatActivity {
                         produto.setIdCategoria(categoriaSelecionada.getId());
                         produto.setDescricao(descricao);
 
-                        salvarImagemFirebase();
+                        if (novoProduto){
+                            if (caminhoImagem != null){
+                                salvarImagemFirebase();
+                            }else{
+                                ocultarTeclado();
+                                Snackbar.make(
+                                        img_produto,
+                                        "Selecione a imagem",
+                                        Snackbar.LENGTH_SHORT
+
+                                ).show();
+                            }
+
+                        }else{
+                            if (caminhoImagem != null){
+                                salvarImagemFirebase();
+                            }else{
+                                produto.salvar();
+                            }
+                        }
 
                     }else{
                         edt_descricao.requestFocus();
@@ -124,7 +193,7 @@ public class EmpresaFormProdutoActivity extends AppCompatActivity {
     }
 
     private void iniciaComponentes(){
-        TextView text_toobar = findViewById(R.id.text_toobar);
+        text_toobar = findViewById(R.id.text_toobar);
         text_toobar.setText("Novo produto");
         img_produto = findViewById(R.id.img_produto);
         edt_nome = findViewById(R.id.edt_nome);
@@ -183,7 +252,9 @@ public class EmpresaFormProdutoActivity extends AppCompatActivity {
             produto.setUrlImagem(task.getResult().toString());
             produto.salvar();
 
-            finish();
+            if (novoProduto){
+                finish();
+            }
 
         })).addOnFailureListener(e -> erroSalvarProduto(e.getMessage()));
     }

@@ -3,8 +3,11 @@ package com.example.ifood.model;
 import com.example.ifood.helper.FirebaseHelper;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.Exclude;
+import com.google.firebase.storage.StorageReference;
 
-public class Produto {
+import java.io.Serializable;
+
+public class Produto implements Serializable {
     private String id;
     private String nome;
     private int idLocal;
@@ -27,10 +30,20 @@ public class Produto {
                 .child(FirebaseHelper.getIdFirebase())
                 .child(getId());
         produtoRef.setValue(this);
-
     }
     public void remover(){
+        DatabaseReference produtoRef = FirebaseHelper.getDatabaseReference()
+                .child("produtos")
+                .child(FirebaseHelper.getIdFirebase())
+                .child(getId());
+        produtoRef.removeValue();
 
+        StorageReference storageReference = FirebaseHelper.getStorageReference()
+                .child("imagens")
+                .child("produtos")
+                .child(FirebaseHelper.getIdFirebase())
+                .child(getId() + ".JPEG");
+        storageReference.delete();
     }
 
     public String getId() {
